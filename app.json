@@ -2,31 +2,22 @@
   "expo": {
     "name": "HealthConnectDemo",
     "slug": "healthconnectdemo",
-    "version": "1.0.0",
     "android": {
       "package": "com.healthconnectdemo",
       "permissions": [
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_CALORIES_BURNED"
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED"
       ]
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "minSdkVersion": 26
-          }
-        }
-      ],
       [
         "react-native-health-connect",
         {
           "healthConnectPermissions": [
             "android.permission.health.READ_STEPS",
             "android.permission.health.READ_HEART_RATE",
-            "android.permission.health.READ_CALORIES_BURNED"
+            "android.permission.health.READ_ACTIVE_CALORIES_BURNED"
           ]
         }
       ]
