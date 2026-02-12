@@ -4,8 +4,8 @@ import {
   Text,
   Button,
   Alert,
-  Linking,
   ScrollView,
+  NativeModules,
 } from 'react-native'
 import {
   initialize,
@@ -13,18 +13,18 @@ import {
   readRecords,
 } from 'react-native-health-connect'
 
+const { OpenHealthConnect } = NativeModules
+
 export default function Home() {
   const [steps, setSteps] = useState<number | null>(null)
   const [heartRate, setHeartRate] = useState<number | null>(null)
   const [calories, setCalories] = useState<number | null>(null)
 
-  const openHealthConnect = async () => {
-    try {
-      await Linking.openURL('healthconnect://settings')
-    } catch {
-      Alert.alert(
-        'Please open Health Connect manually and enable permissions.'
-      )
+  const openHealthConnect = () => {
+    if (OpenHealthConnect) {
+      OpenHealthConnect.open()
+    } else {
+      Alert.alert('Health Connect module not available')
     }
   }
 
@@ -37,7 +37,7 @@ export default function Home() {
       if (granted.length === 0) {
         Alert.alert(
           'Permission Required',
-          'No permissions granted. Please enable them in Health Connect.',
+          'Please enable permissions in Health Connect.',
           [
             { text: 'Open Health Connect', onPress: openHealthConnect },
             { text: 'Cancel', style: 'cancel' },
@@ -90,7 +90,7 @@ export default function Home() {
         setHeartRate(avgHeart ? Math.round(avgHeart) : null)
       }
 
-      // 🔥 Active Calories
+      // 🔥 Calories
       if (granted.some(g => g.recordType === 'ActiveCaloriesBurned')) {
         const caloriesResult = await readRecords(
           'ActiveCaloriesBurned',
