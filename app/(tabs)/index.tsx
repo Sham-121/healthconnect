@@ -6,41 +6,82 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  AppState,
 } from "react-native";
 
 import {
   initialize,
+  getSdkStatus,
+  SdkAvailabilityStatus,
   requestPermission,
+  getGrantedPermissions,
   readRecords,
+  Permission,
 } from "react-native-health-connect";
 
 export default function HomeScreen() {
-  const [steps, setSteps] = useState(0);
+  const [steps, setSteps] = useState<number>(0);
   const [heartRate, setHeartRate] = useState<number | null>(null);
-  const [calories, setCalories] = useState(0);
+  const [calories, setCalories] = useState<number>(0);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
+  // Initialize Health Connect
   useEffect(() => {
-    initHealthConnect();
+    const setup = async () => {
+      try {
+        const status = await getSdkStatus();
+
+        if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE) {
+          Alert.alert("Health Connect not available on this device");
+          return;
+        }
+
+        if (
+          status ===
+          SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED
+        ) {
+          Alert.alert("Please update Health Connect app");
+          return;
+        }
+
+        await initialize();
+        setInitialized(true);
+      } catch (error) {
+        console.log("Initialization error:", error);
+      }
+    };
+
+    setup();
   }, []);
 
-  const initHealthConnect = async () => {
-    try {
-      const initialized = await initialize();
-      if (!initialized) {
-        Alert.alert("Health Connect not available on this device");
+  // Realme fix: refetch when coming back from permission screen
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") {
+        fetchHealthData();
       }
-    } catch (error) {
-      console.log("Init error:", error);
-    }
-  };
+    });
+
+    return () => subscription.remove();
+  }, [initialized]);
 
   const fetchHealthData = async () => {
+    if (!initialized) return;
+
     try {
-      await requestPermission([
+      const requiredPermissions: Permission[] = [
         { accessType: "read", recordType: "Steps" },
         { accessType: "read", recordType: "HeartRate" },
         { accessType: "read", recordType: "ActiveCaloriesBurned" },
-      ]);
+      ];
+
+      const grantedPermissions = await getGrantedPermissions();
+
+      if (grantedPermissions.length < requiredPermissions.length) {
+        // On Realme this may open Google Fit or Health Connect
+        await requestPermission(requiredPermissions);
+        return; // stop execution after requesting
+      }
 
       const now = new Date();
       const start = new Date();
@@ -56,7 +97,7 @@ export default function HomeScreen() {
       });
 
       const totalSteps = stepsData.records.reduce(
-        (sum, record) => sum + record.count,
+        (sum: number, record: any) => sum + record.count,
         0
       );
 
@@ -72,9 +113,10 @@ export default function HomeScreen() {
       });
 
       if (hrData.records.length > 0) {
-        const latestHR =
-          hrData.records[hrData.records.length - 1].samples[0].beatsPerMinute;
-        setHeartRate(latestHR);
+        const latest =
+          hrData.records[hrData.records.length - 1].samples[0]
+            .beatsPerMinute;
+        setHeartRate(latest);
       }
 
       // 🔥 Calories
@@ -87,14 +129,15 @@ export default function HomeScreen() {
       });
 
       const totalCalories = calorieData.records.reduce(
-        (sum, record) => sum + record.energy.inKilocalories,
+        (sum: number, record: any) =>
+          sum + record.energy.inKilocalories,
         0
       );
 
       setCalories(totalCalories);
     } catch (error) {
       console.log("Fetch error:", error);
-      Alert.alert("Permission denied or data error");
+      Alert.alert("Error fetching health data");
     }
   };
 
