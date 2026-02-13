@@ -7,6 +7,7 @@ import {
   ScrollView,
   NativeModules,
 } from 'react-native'
+
 import {
   initialize,
   getGrantedPermissions,
@@ -18,7 +19,9 @@ const { OpenHealthConnect } = NativeModules
 export default function Home() {
   const [steps, setSteps] = useState<number | null>(null)
   const [heartRate, setHeartRate] = useState<number | null>(null)
-  const [calories, setCalories] = useState<number | null>(null)
+  const [activeCalories, setActiveCalories] = useState<number | null>(null)
+  const [totalCalories, setTotalCalories] = useState<number | null>(null)
+  const [sleepHours, setSleepHours] = useState<number | null>(null)
 
   const openHealthConnect = () => {
     if (OpenHealthConnect) {
@@ -30,14 +33,17 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      await initialize()
+
+      // 🔥 REQUIRED for Realme/Oppo
+await initialize('com.google.android.apps.healthdata')
+
 
       const granted = await getGrantedPermissions()
 
       if (granted.length === 0) {
         Alert.alert(
           'Permission Required',
-          'Please enable permissions in Health Connect.',
+          'Please allow permissions in Health Connect.',
           [
             { text: 'Open Health Connect', onPress: openHealthConnect },
             { text: 'Cancel', style: 'cancel' },
@@ -50,8 +56,12 @@ export default function Home() {
       const startOfDay = new Date()
       startOfDay.setHours(0, 0, 0, 0)
 
-      // 🟢 Steps
-      if (granted.some(g => g.recordType === 'Steps')) {
+      // ===========================
+      // 🟢 STEPS
+      // ===========================
+
+      if (granted.some(g => g.recordType.includes('Steps'))) {
+
         const stepsResult = await readRecords('Steps', {
           timeRangeFilter: {
             operator: 'between',
@@ -68,8 +78,12 @@ export default function Home() {
         setSteps(totalSteps)
       }
 
-      // 🔴 Heart Rate
-      if (granted.some(g => g.recordType === 'HeartRate')) {
+      // ===========================
+      // 🔴 HEART RATE
+      // ===========================
+
+      if (granted.some(g => g.recordType.includes('HeartRate'))) {
+
         const heartResult = await readRecords('HeartRate', {
           timeRangeFilter: {
             operator: 'between',
@@ -90,30 +104,80 @@ export default function Home() {
         setHeartRate(avgHeart ? Math.round(avgHeart) : null)
       }
 
-      // 🔥 Calories
-      if (granted.some(g => g.recordType === 'ActiveCaloriesBurned')) {
-        const caloriesResult = await readRecords(
-          'ActiveCaloriesBurned',
-          {
-            timeRangeFilter: {
-              operator: 'between',
-              startTime: startOfDay.toISOString(),
-              endTime: now.toISOString(),
-            },
-          }
-        )
+      // ===========================
+      // 🔥 ACTIVE CALORIES
+      // ===========================
 
-        const totalCalories = caloriesResult.records.reduce(
-          (sum, record) =>
-            sum + (record.energy?.inKilocalories ?? 0),
+      if (granted.some(g => g.recordType.includes('ActiveCaloriesBurned'))) {
+
+        const activeCal = await readRecords('ActiveCaloriesBurned', {
+          timeRangeFilter: {
+            operator: 'between',
+            startTime: startOfDay.toISOString(),
+            endTime: now.toISOString(),
+          },
+        })
+
+        const totalActive = activeCal.records.reduce(
+          (sum, record) => sum + (record.energy?.inKilocalories ?? 0),
           0
         )
 
-        setCalories(Math.round(totalCalories))
+        setActiveCalories(Math.round(totalActive))
+      }
+
+      // ===========================
+      // 🔥 TOTAL CALORIES
+      // ===========================
+
+      if (granted.some(g => g.recordType.includes('TotalCaloriesBurned'))) {
+
+        const totalCal = await readRecords('TotalCaloriesBurned', {
+          timeRangeFilter: {
+            operator: 'between',
+            startTime: startOfDay.toISOString(),
+            endTime: now.toISOString(),
+          },
+        })
+
+        const total = totalCal.records.reduce(
+          (sum, record) => sum + (record.energy?.inKilocalories ?? 0),
+          0
+        )
+
+        setTotalCalories(Math.round(total))
+      }
+
+      // ===========================
+      // 💤 SLEEP
+      // ===========================
+
+      if (granted.some(g => g.recordType.includes('SleepSession'))) {
+
+        const sleepResult = await readRecords('SleepSession', {
+          timeRangeFilter: {
+            operator: 'between',
+            startTime: startOfDay.toISOString(),
+            endTime: now.toISOString(),
+          },
+        })
+
+        const totalSleepMs = sleepResult.records.reduce(
+          (sum, record) =>
+            sum +
+            (new Date(record.endTime).getTime() -
+              new Date(record.startTime).getTime()),
+          0
+        )
+
+        setSleepHours(
+          totalSleepMs > 0
+            ? parseFloat((totalSleepMs / (1000 * 60 * 60)).toFixed(1))
+            : null
+        )
       }
 
     } catch (e: any) {
-      console.log('Fetch error:', e)
       Alert.alert('Error', e.message)
     }
   }
@@ -140,7 +204,15 @@ export default function Home() {
       </Text>
 
       <Text style={{ fontSize: 18, marginTop: 10 }}>
-        Active Calories: {calories ?? '--'} kcal
+        Active Calories: {activeCalories ?? '--'} kcal
+      </Text>
+
+      <Text style={{ fontSize: 18, marginTop: 10 }}>
+        Total Calories: {totalCalories ?? '--'} kcal
+      </Text>
+
+      <Text style={{ fontSize: 18, marginTop: 10 }}>
+        Sleep: {sleepHours ?? '--'} hrs
       </Text>
 
       <View style={{ marginTop: 30 }}>
