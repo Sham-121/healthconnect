@@ -22,3 +22,15 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects { project ->
+    project.plugins.withId("com.android.library") {
+        project.android {
+            publishing {
+                singleVariant("release") {
+                    withSourcesJar()
+                }
+            }
+        }
+    }
+}
