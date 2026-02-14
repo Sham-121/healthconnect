@@ -1,0 +1,55 @@
+# Node
+node_modules
+
+# Expo
+.expo
+dist
+web-build
+
+# Git
+.git
+.gitignore
+
+# Android Build Artifacts
+android/.gradle
+android/build
+android/app/build
+android/.cxx
+android/app/.cxx
+android/.idea
+
+# Kotlin / NDK junk
+.kotlin
+.cxx
+
+# Editor
+.vscode
+.DS_Store
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Certificates / Keys
+*.apk
+*.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# Env
+.env*.local
+
+# Metro
+.metro-health-check*
+
+# TS
+*.tsbuildinfo
+
+# iOS (not needed for android build)
+/ios
